@@ -54,10 +54,7 @@ jobs:
           role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       - name: Package Lambdas
-        run: |
-          pip install --quiet ./shared --target build/hello_world
-          cp services/hello_world/handler.py build/hello_world/
-          cd build/hello_world && zip -qr ../hello_world.zip .
+        run: make package PY=python
       - name: Terraform fmt
         run: terraform fmt -check -recursive infra
       - name: Init

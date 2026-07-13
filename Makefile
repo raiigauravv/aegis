@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 VENV := .venv
-PY := $(VENV)/bin/python
+PY ?= $(VENV)/bin/python  # CI overrides with the system python: make package PY=python
 ENV ?= dev
 TF_DIR := infra/envs/$(ENV)
 BUILD_DIR := build
