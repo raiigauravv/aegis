@@ -15,6 +15,9 @@ Two real bugs found and fixed en route: macOS-native wheels in the Lambda zip (f
 `pip --platform manylinux2014_x86_64`), and account-level 403s on ALL public Function URLs — this
 account is under new-account abuse controls (Bedrock quotas 0 TPM, Lambda concurrency capped at 10),
 so public endpoints moved to API Gateway HTTP API (ADR-003).
-**Pending for DoD:** GitHub repo pushed + OIDC role so CI runs green; budget-alarm email observed;
-AWS support case **178397104900264** (filed 2026-07-13, Account → Other Account Issues) to lift
-Bedrock/concurrency limits — needed by Phase 3, not before.
+Repo pushed to github.com/raiigauravv/aegis; CI green end-to-end (quality + terraform jobs), with
+deploys via OIDC role `aegis-ci-deploy` (trust scoped to this repo; PowerUserAccess + IAM limited
+to `aegis-*` roles). Tagged `v0.0-foundations`.
+**Carried forward:** budget-alarm email will be observed when the first cent bills (zero-spend
+budget covers this); AWS support case **178397104900264** (filed 2026-07-13, Account → Other
+Account Issues) to lift Bedrock 0-TPM quotas / Lambda concurrency 10 — needed by Phase 3, not before.
