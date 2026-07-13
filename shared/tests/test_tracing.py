@@ -2,7 +2,6 @@ import json
 import logging
 
 import pytest
-
 from aegis_core.tracing import JsonFormatter, get_logger, traced_step
 
 

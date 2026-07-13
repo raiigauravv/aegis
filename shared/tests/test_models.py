@@ -1,7 +1,6 @@
 import pytest
-from pydantic import ValidationError
-
 from aegis_core.models import TraceEvent, new_ticket_id
+from pydantic import ValidationError
 
 
 def test_trace_event_is_frozen() -> None:

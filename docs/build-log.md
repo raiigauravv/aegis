@@ -2,6 +2,19 @@
 
 One entry per phase. These entries become the demo-video script and interview stories.
 
+## Phase 2 — Ingestion spine (2026-07-13) · tag `v0.1-ingestion`
+
+Text tickets flow POST /tickets → SQS → intake_router → DynamoDB single-table (PK=TICKET#id,
+SK=META|TRACE#ts) with idempotent conditional writes; S3 file drops enter the same queue and park
+as `awaiting_extraction` for Phase 3. DLQ + depth alarm wired (alarm #1). Frontend submits and
+renders the live trace timeline. New reusable Terraform `lambda_service` module (role-per-function,
+least privilege).
+
+**Load test (500 tickets, measured):** POST p50 117ms / p95 1.46s; end-to-end (submit→persisted)
+p50 118ms / p95 1.26s / max 3.0s; **zero DLQ entries**; 151 client retries against the account's
+10-concurrent-execution cap at 8 parallel submitters (~28 tickets/s sustained) — SQS absorbed the
+burst, nothing dropped. 2,080 items in the table after ~1,000 test tickets.
+
 ## Phase 1 — Foundations & guardrails (started 2026-07-13)
 
 Repo scaffolded with the full module layout, `aegis_core` (typed contracts + structured JSON tracing,

@@ -24,6 +24,17 @@ class Modality(StrEnum):
     AUDIO = "audio"
 
 
+class Channel(StrEnum):
+    API = "api"
+    S3 = "s3"
+
+
+class TicketStatus(StrEnum):
+    RECEIVED = "received"
+    AWAITING_EXTRACTION = "awaiting_extraction"  # file dropped, Phase 3 extracts
+    FAILED = "failed"
+
+
 class AegisModel(BaseModel):
     """Base for all contracts: immutable, no silent extra fields."""
 
@@ -39,3 +50,26 @@ class TraceEvent(AegisModel):
     latency_ms: float | None = None
     detail: dict[str, str] = Field(default_factory=dict)
     at: datetime = Field(default_factory=_now)
+
+
+class TicketSubmission(AegisModel):
+    """What ticket_api enqueues to SQS for the intake_router."""
+
+    ticket_id: str
+    text: str = Field(min_length=1, max_length=10_000)
+    subject: str | None = Field(default=None, max_length=200)
+    channel: Channel = Channel.API
+    submitted_at: datetime = Field(default_factory=_now)
+
+
+class TicketMeta(AegisModel):
+    """The META item for a ticket — its authoritative current state."""
+
+    ticket_id: str
+    status: TicketStatus
+    channel: Channel
+    modality: Modality
+    subject: str | None = None
+    text: str = ""
+    source: dict[str, str] = Field(default_factory=dict)  # e.g. s3 bucket/key
+    created_at: datetime = Field(default_factory=_now)

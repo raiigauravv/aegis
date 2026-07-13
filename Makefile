@@ -28,11 +28,18 @@ test: lint ## Lint, type-check, and run unit tests
 # (pydantic_core etc.) fail to import there.
 PIP_LAMBDA_FLAGS := --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12
 
+SERVICES := hello_world ticket_api intake_router
+
 package: ## Build Lambda zip artifacts into build/
-	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/hello_world
-	$(PY) -m pip install --quiet --target $(BUILD_DIR)/hello_world $(PIP_LAMBDA_FLAGS) ./shared
-	cp services/hello_world/handler.py $(BUILD_DIR)/hello_world/
-	cd $(BUILD_DIR)/hello_world && zip -qr ../hello_world.zip .
+	rm -rf $(BUILD_DIR)
+	@for svc in $(SERVICES); do \
+	  mkdir -p $(BUILD_DIR)/$$svc; \
+	  $(PY) -m pip install --quiet --target $(BUILD_DIR)/$$svc $(PIP_LAMBDA_FLAGS) ./shared; \
+	  cp services/$$svc/handler.py $(BUILD_DIR)/$$svc/; \
+	  if [ "$$svc" = "ticket_api" ]; then cp frontend/index.html $(BUILD_DIR)/$$svc/; fi; \
+	  (cd $(BUILD_DIR)/$$svc && zip -qr ../$$svc.zip .); \
+	  echo "built $$svc.zip"; \
+	done
 
 bootstrap: ## One-time: create Terraform remote state bucket + lock table
 	cd infra/bootstrap && terraform init && terraform apply
