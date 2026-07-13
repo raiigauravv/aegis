@@ -24,9 +24,13 @@ lint: ## Ruff + mypy
 test: lint ## Lint, type-check, and run unit tests
 	$(PY) -m pytest shared/tests services -q
 
+# --platform manylinux2014: Lambda runs Linux; native wheels built for macOS
+# (pydantic_core etc.) fail to import there.
+PIP_LAMBDA_FLAGS := --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12
+
 package: ## Build Lambda zip artifacts into build/
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/hello_world
-	$(PY) -m pip install --quiet --target $(BUILD_DIR)/hello_world ./shared
+	$(PY) -m pip install --quiet --target $(BUILD_DIR)/hello_world $(PIP_LAMBDA_FLAGS) ./shared
 	cp services/hello_world/handler.py $(BUILD_DIR)/hello_world/
 	cd $(BUILD_DIR)/hello_world && zip -qr ../hello_world.zip .
 
