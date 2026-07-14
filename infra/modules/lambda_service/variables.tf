@@ -23,6 +23,12 @@ variable "architectures" {
   default = ["x86_64"]
 }
 
+variable "image_command" {
+  description = "Override the image CMD (share one image across handlers)"
+  type        = list(string)
+  default     = null
+}
+
 variable "log_group_name" {
   type = string
 }

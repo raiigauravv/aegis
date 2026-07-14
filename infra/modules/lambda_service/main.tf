@@ -53,6 +53,13 @@ resource "aws_lambda_function" "this" {
   source_code_hash = var.image_uri == null ? filebase64sha256(var.zip_path) : null
   image_uri        = var.image_uri
 
+  dynamic "image_config" {
+    for_each = var.image_command == null ? [] : [1]
+    content {
+      command = var.image_command
+    }
+  }
+
   logging_config {
     log_format = "Text" # aegis_core.tracing emits JSON lines verbatim
     log_group  = var.log_group_name

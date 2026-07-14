@@ -37,6 +37,38 @@ through the LIVE pipeline and scores field accuracy from what actually persisted
 clean synthetics; noisy-scan set and the Nova Lite multimodal column are the Bedrock-gated half,
 harness ready to add the column.
 
+## Phase 7 — Governance (2026-07-14) · tag `v0.6-governance`
+
+mcp_tools server (JSON-RPC tools/list + tools/call, patterns from OpenHive PRs #6963/#6818) with
+YAML allowlists enforced SERVER-SIDE: drafting_agent calling check_customer_context gets error
+−32001 AND an `allowlist_denial` security event in the ticket trace (verified live). Moderation
+gate (same image as enrich, CMD override): PII-on-output + uncited-claim heuristic + policy
+phrases — verified catching all three on a hostile draft. Risk-tiered approval queue in the
+frontend; decisions are FEEDBACK items feeding the bandit. `GET /tickets/{id}/audit` returns the
+full decision chain. **Adversarial suite: 20/20 blocked** (3 text injections + 1 PDF-carried
+injection inert; 4 PII baits redacted; 4 contract rejects; tier-3 human-only + bandit bypass;
+3 MCP allowlist cases; moderation block). Found+fixed: DynamoDB Scan Limit pre-filters (approval
+queue pagination). **Pending Bedrock:** the agents these guardrails wrap.
+
+## Phase 8 (online half) — bandit in production (2026-07-14) · tag `v0.5-bandit`
+
+bandit_policy Lambda serves LinUCB from DynamoDB sufficient statistics (PK=BANDIT SK=ARM#i);
+feedback queue → reward updates; nightly EventBridge snapshot to S3 (replayable policy history).
+Tier-3 bypass enforced at the policy layer. **Measured: 298 live episodes through the production
+pipeline** (real Lambdas/DynamoDB/SQS, synthetic user with the ADR-004 preference model): mean
+reward 0.53 (first 50) → 0.72 (last 50), cumulative 192 — the deployed policy learned online.
+Curves: `bandit/notebooks/online_learning.png`.
+
+## Phase 9 — Evaluation-gated CI (2026-07-14) · tag `v0.7-eval-gate`
+
+`eval-gate` CI job: retrieval + redaction recomputed from scratch each run; extraction +
+adversarial from their latest live-infra runs; ANY metric below `evals/thresholds.yaml` blocks
+the terraform deploy job (needs: [quality, eval-gate]). Nightly cron re-runs the gate.
+**Demonstrated block:** a simulated ingestion bug (headings-only index) dropped hit@3 to 0.754 →
+`EVAL GATE FAILED [retrieval.hit_at_3, retrieval.mrr]`, deploy refused; restore → green. Also
+notable: 8-word chunk truncation did NOT break the gate (hit@3 0.92) — the golden set caught the
+severity difference correctly. **Pending Bedrock:** groundedness LLM-judge, fabrication canaries.
+
 ## Phase 8 (offline half) — LinUCB bandit (2026-07-13)
 
 LinUCB from scratch (~70 lines, disjoint linear models, DynamoDB-serializable sufficient

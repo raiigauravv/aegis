@@ -17,7 +17,7 @@ resource "aws_sqs_queue" "ingest" {
 
 # Per-stage work queues; all poison messages funnel to the one alarmed DLQ.
 resource "aws_sqs_queue" "stage" {
-  for_each                   = toset(["enrich", "extract", "transcribe"])
+  for_each                   = toset(["enrich", "extract", "transcribe", "feedback"])
   name                       = "aegis-${var.env}-${each.value}"
   visibility_timeout_seconds = each.value == "enrich" ? 120 : 360 # containers are slower
   redrive_policy = jsonencode({

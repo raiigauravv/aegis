@@ -28,15 +28,29 @@ test: lint ## Lint, type-check, and run unit tests
 # (pydantic_core etc.) fail to import there.
 PIP_LAMBDA_FLAGS := --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.12
 
-SERVICES := hello_world ticket_api intake_router
+SERVICES := hello_world ticket_api intake_router bandit_policy mcp_tools
 
 package: ## Build Lambda zip artifacts into build/
 	rm -rf $(BUILD_DIR)
 	@for svc in $(SERVICES); do \
 	  mkdir -p $(BUILD_DIR)/$$svc; \
 	  $(PY) -m pip install --quiet --target $(BUILD_DIR)/$$svc $(PIP_LAMBDA_FLAGS) ./shared; \
-	  cp services/$$svc/handler.py $(BUILD_DIR)/$$svc/; \
-	  if [ "$$svc" = "ticket_api" ]; then cp frontend/index.html $(BUILD_DIR)/$$svc/; fi; \
+	  cp services/$$svc/*.py $(BUILD_DIR)/$$svc/; \
+	  rm -f $(BUILD_DIR)/$$svc/test_*.py $(BUILD_DIR)/$$svc/__init__.py; \
+	  if [ "$$svc" = "ticket_api" ]; then \
+	    cp frontend/index.html $(BUILD_DIR)/$$svc/; \
+	    cp bandit/notebooks/regret_curves.png $(BUILD_DIR)/$$svc/ 2>/dev/null || true; \
+	    cp evals/scorecard.json $(BUILD_DIR)/$$svc/ 2>/dev/null || true; \
+	  fi; \
+	  if [ "$$svc" = "bandit_policy" ]; then \
+	    $(PY) -m pip install --quiet --target $(BUILD_DIR)/$$svc $(PIP_LAMBDA_FLAGS) numpy; \
+	    mkdir -p $(BUILD_DIR)/$$svc/bandit_lib && touch $(BUILD_DIR)/$$svc/bandit_lib/__init__.py; \
+	    cp bandit/linucb.py bandit/context.py $(BUILD_DIR)/$$svc/bandit_lib/; \
+	  fi; \
+	  if [ "$$svc" = "mcp_tools" ]; then \
+	    $(PY) -m pip install --quiet --target $(BUILD_DIR)/$$svc $(PIP_LAMBDA_FLAGS) pyyaml; \
+	    cp services/mcp_tools/allowlists.yaml $(BUILD_DIR)/$$svc/; \
+	  fi; \
 	  (cd $(BUILD_DIR)/$$svc && zip -qr ../$$svc.zip .); \
 	  echo "built $$svc.zip"; \
 	done
@@ -56,8 +70,10 @@ destroy: ## Tear down $(ENV)
 ACCOUNT := 490004650850
 ECR := $(ACCOUNT).dkr.ecr.us-east-1.amazonaws.com
 
+# KMP_DUPLICATE_LIB_OK: faiss + onnxruntime each bundle libomp on macOS; harmless in this
+# read-mostly workload and absent on Linux CI.
 eval: ## Run the evaluation suite (blocks below thresholds.yaml floors)
-	$(PY) evals/run_eval.py
+	KMP_DUPLICATE_LIB_OK=TRUE $(PY) evals/run_eval.py
 
 seed: ## Regenerate KB docs + golden retrieval set
 	$(PY) knowledge/scripts/seed_kb.py

@@ -1,0 +1,25 @@
+{
+  "retrieval": {
+    "n": 65,
+    "hit_at_3": 0.9385,
+    "mrr": 0.8932
+  },
+  "redaction": {
+    "cases": 50,
+    "tp": 35,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1.0,
+    "recall": 1.0
+  },
+  "extraction": {
+    "field_accuracy_pdf": 1.0,
+    "field_accuracy_ocr": 1.0,
+    "completed": 20
+  },
+  "adversarial": {
+    "total": 20,
+    "blocked_rate": 1.0
+  },
+  "generated_at": "2026-07-14T20:47:28+00:00"
+}

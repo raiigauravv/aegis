@@ -62,6 +62,20 @@ def update_meta(ticket_id: str, fields: dict[str, Any]) -> None:
     )
 
 
+def append_feedback(ticket_id: str, feedback: dict[str, Any]) -> None:
+    """FEEDBACK#<ts> item: human decisions, the bandit's learning signal."""
+    from datetime import UTC, datetime
+
+    table().put_item(
+        Item={
+            "PK": _pk(ticket_id),
+            "SK": f"FEEDBACK#{datetime.now(UTC).isoformat()}",
+            "ticket_id": ticket_id,
+            **feedback,
+        }
+    )
+
+
 def append_trace(event: TraceEvent) -> None:
     item: dict[str, Any] = {
         "PK": _pk(event.ticket_id),
@@ -90,7 +104,7 @@ def get_ticket(ticket_id: str) -> dict[str, Any] | None:
         KeyConditionExpression="PK = :pk",
         ExpressionAttributeValues={":pk": _pk(ticket_id)},
     )
-    meta, trace = None, []
+    meta, trace, feedback = None, [], []
     for raw in resp.get("Items", []):
         item = _plain(raw)
         item.pop("PK", None)
@@ -99,7 +113,10 @@ def get_ticket(ticket_id: str) -> dict[str, Any] | None:
             meta = item
         elif sk.startswith("TRACE#"):
             trace.append(item)
+        elif sk.startswith("FEEDBACK#"):
+            item["at"] = sk.removeprefix("FEEDBACK#")
+            feedback.append(item)
     if meta is None:
         return None
     trace.sort(key=lambda t: str(t.get("at", "")))
-    return {"meta": meta, "trace": trace}
+    return {"meta": meta, "trace": trace, "feedback": feedback}

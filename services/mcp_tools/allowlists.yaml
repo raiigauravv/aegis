@@ -1,0 +1,17 @@
+# Per-agent tool allowlists — THE governance contract, enforced server-side in
+# mcp_tools (not by prompt engineering). Mirrored in docs/governance.md.
+# A denial is a logged security event, never a silent no-op.
+agents:
+  triage_agent:
+    - extract_entities
+  research_agent:
+    - search_knowledge_base
+    - get_ticket_history
+    - extract_entities
+    - check_customer_context
+  drafting_agent:
+    # drafting works ONLY from the ResearchBundle it was handed;
+    # it literally cannot look up customers or search on its own.
+    - []
+  approval_ui:
+    - get_ticket_history

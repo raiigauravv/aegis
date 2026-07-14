@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "30 7 * * *" # nightly eval against the committed golden sets (drift check)
 
 permissions:
   contents: read
@@ -33,12 +35,34 @@ jobs:
       - name: Test
         run: pytest shared/tests services -q
 
-  # eval-gate job lands in Phase 9: golden-set regression + groundedness thresholds
-  # that BLOCK this pipeline on failure.
+  # THE deploy gate: retrieval + redaction are recomputed from scratch on every
+  # run; extraction + adversarial suites read the committed results of their
+  # latest live-infra runs (recomputed on demand: make bench / run_adversarial).
+  # Any metric below evals/thresholds.yaml BLOCKS the deploy job below.
+  # Pending Bedrock quota: groundedness LLM-judge + fabrication canaries slot in here.
+  eval-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install eval deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "./shared[dev]"
+          pip install fastembed faiss-cpu numpy presidio-analyzer langdetect vaderSentiment pyyaml
+          python -m spacy download en_core_web_sm
+      - name: Rebuild index from source docs
+        run: |
+          python knowledge/scripts/seed_kb.py
+          python knowledge/scripts/build_index.py
+      - name: Run evaluation gate
+        run: python evals/run_eval.py
 
   terraform:
     runs-on: ubuntu-latest
-    needs: quality
+    needs: [quality, eval-gate]
     # Skip until AWS OIDC is wired up (Phase 1 account setup); set the variable to enable.
     if: vars.AWS_OIDC_ROLE_ARN != ''
     steps:

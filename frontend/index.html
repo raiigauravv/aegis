@@ -3,48 +3,97 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AEGIS — support intake</title>
+<title>AEGIS — support intelligence</title>
 <style>
   :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, sans-serif; }
-  body { margin: 0 auto; max-width: 720px; padding: 2rem 1rem; background: #0e1116; color: #e6e6e6; }
-  h1 { font-size: 1.3rem; } h1 span { color: #6ea8fe; }
+  body { margin: 0 auto; max-width: 860px; padding: 1.5rem 1rem; background: #0e1116; color: #e6e6e6; }
+  h1 { font-size: 1.25rem; margin: 0 0 1rem; } h1 span { color: #6ea8fe; }
+  nav { display: flex; gap: .4rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+  nav button { background: #161b22; color: #9aa4b2; border: 1px solid #2d333b; border-radius: 999px;
+    padding: .4rem 1rem; font: inherit; cursor: pointer; }
+  nav button.on { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+  section { display: none; } section.on { display: block; }
   label { display: block; margin: .8rem 0 .25rem; font-size: .85rem; color: #9aa4b2; }
   input, textarea { width: 100%; box-sizing: border-box; background: #161b22; color: #e6e6e6;
     border: 1px solid #2d333b; border-radius: 6px; padding: .55rem; font: inherit; }
-  textarea { min-height: 110px; }
-  button { margin-top: 1rem; background: #1f6feb; color: #fff; border: 0; border-radius: 6px;
-    padding: .6rem 1.4rem; font: inherit; cursor: pointer; }
-  button:disabled { opacity: .5; cursor: wait; }
-  #status { margin-top: 1rem; font-size: .9rem; color: #9aa4b2; word-break: break-all; }
-  .trace { margin-top: 1.5rem; border-left: 2px solid #2d333b; padding-left: 1rem; }
-  .evt { margin-bottom: .9rem; }
-  .evt .step { font-weight: 600; color: #6ea8fe; }
-  .evt .meta { font-size: .8rem; color: #9aa4b2; }
-  .badge { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .75rem;
-    background: #1f6feb33; color: #6ea8fe; border: 1px solid #1f6feb66; }
+  textarea { min-height: 100px; }
+  button.act { margin: .8rem .4rem 0 0; background: #1f6feb; color: #fff; border: 0; border-radius: 6px;
+    padding: .5rem 1.1rem; font: inherit; cursor: pointer; }
+  button.act.warn { background: #b23c3c; } button.act.soft { background: #2d333b; }
+  button:disabled { opacity: .5; }
+  .muted { color: #9aa4b2; font-size: .85rem; }
+  .badge { display: inline-block; padding: .05rem .5rem; border-radius: 999px; font-size: .75rem;
+    background: #1f6feb33; color: #6ea8fe; border: 1px solid #1f6feb66; margin-left: .3rem; }
+  .badge.t3 { background: #b23c3c33; color: #ff9f9f; border-color: #b23c3c66; }
+  .card { background: #11151b; border: 1px solid #2d333b; border-radius: 8px; padding: .8rem 1rem; margin: .8rem 0; }
+  .trace { border-left: 2px solid #2d333b; padding-left: 1rem; margin-top: .8rem; }
+  .evt { margin-bottom: .7rem; } .evt .step { font-weight: 600; color: #6ea8fe; }
+  .evt .meta { font-size: .78rem; color: #9aa4b2; word-break: break-all; }
+  pre { background: #11151b; border: 1px solid #2d333b; border-radius: 8px; padding: .8rem;
+    overflow-x: auto; font-size: .78rem; }
+  img.curve { max-width: 100%; border-radius: 8px; border: 1px solid #2d333b; }
 </style>
 </head>
 <body>
-<h1><span>AEGIS</span> — submit a support ticket</h1>
-<form id="f">
-  <label for="subject">Subject (optional)</label>
-  <input id="subject" maxlength="200" placeholder="Can't log in to NorthStar app">
-  <label for="text">Describe the problem</label>
-  <textarea id="text" required maxlength="10000" placeholder="What happened?"></textarea>
-  <button id="go" type="submit">Submit ticket</button>
-</form>
-<div id="status"></div>
-<div id="ticket"></div>
+<h1><span>AEGIS</span> — agentic evaluation-gated support</h1>
+<nav>
+  <button data-tab="submit" class="on">Submit</button>
+  <button data-tab="approvals">Approval queue</button>
+  <button data-tab="kb">Knowledge search</button>
+  <button data-tab="metrics">Metrics</button>
+</nav>
+
+<section id="submit" class="on">
+  <form id="f">
+    <label for="subject">Subject (optional)</label>
+    <input id="subject" maxlength="200" placeholder="Can't log in to NorthStar app">
+    <label for="text">Describe the problem</label>
+    <textarea id="text" required maxlength="10000" placeholder="What happened?"></textarea>
+    <button class="act" id="go" type="submit">Submit ticket</button>
+  </form>
+  <div id="status" class="muted" style="margin-top:1rem"></div>
+  <div id="ticket"></div>
+</section>
+
+<section id="approvals">
+  <p class="muted">Tier-3 tickets require mandatory human review (governance > optimization —
+  these never touch the bandit). Decisions feed the routing policy as rewards.</p>
+  <button class="act soft" onclick="loadApprovals()">Refresh</button>
+  <div id="queue"></div>
+</section>
+
+<section id="kb">
+  <label for="q">Ask the knowledge base (NorthStar Banking)</label>
+  <input id="q" placeholder="what are the e-transfer limits?">
+  <button class="act" onclick="kbSearch()">Search</button>
+  <div id="kbout"></div>
+</section>
+
+<section id="metrics">
+  <p class="muted">Every number below is emitted by the eval harness — nothing hand-written.</p>
+  <pre id="scorecard">loading…</pre>
+  <h3 style="font-size:.95rem">Offline routing-policy regret (LinUCB vs baselines)</h3>
+  <img class="curve" src="bandit/curve" alt="regret curves"
+       onerror="this.replaceWith('curve not bundled yet')">
+</section>
 
 <script>
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button, section').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  document.getElementById(b.dataset.tab).classList.add('on');
+  if (b.dataset.tab === 'approvals') loadApprovals();
+  if (b.dataset.tab === 'metrics') loadScorecard();
+});
+
 const f = document.getElementById('f'), go = document.getElementById('go'),
-      status = document.getElementById('status'), ticketEl = document.getElementById('ticket');
+      statusEl = document.getElementById('status'), ticketEl = document.getElementById('ticket');
 let timer = null;
 
 f.addEventListener('submit', async (e) => {
   e.preventDefault();
   go.disabled = true; ticketEl.innerHTML = ''; clearInterval(timer);
-  status.textContent = 'Submitting…';
+  statusEl.textContent = 'Submitting…';
   const body = { text: document.getElementById('text').value };
   const subject = document.getElementById('subject').value.trim();
   if (subject) body.subject = subject;
@@ -53,33 +102,96 @@ f.addEventListener('submit', async (e) => {
       headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const j = await r.json();
     if (!r.ok) throw new Error(JSON.stringify(j));
-    status.textContent = `Queued as ${j.ticket_id} — waiting for pipeline…`;
+    statusEl.textContent = `Queued as ${j.ticket_id} — pipeline running…`;
     poll(j.ticket_id);
-  } catch (err) {
-    status.textContent = 'Error: ' + err.message;
-  } finally { go.disabled = false; }
+  } catch (err) { statusEl.textContent = 'Error: ' + err.message; }
+  finally { go.disabled = false; }
 });
 
 function poll(id) {
   let tries = 0;
   timer = setInterval(async () => {
-    if (++tries > 30) { clearInterval(timer); status.textContent += ' (gave up polling)'; return; }
+    if (++tries > 40) { clearInterval(timer); return; }
     const r = await fetch('tickets/' + id);
-    if (r.status === 404) return;   // router hasn't persisted it yet
+    if (!r.ok) return;
     const t = await r.json();
     render(id, t);
-    clearInterval(timer);
+    if (['enriched','awaiting_approval','approved','rejected'].includes(t.meta.status))
+      clearInterval(timer);
   }, 1500);
 }
 
 function render(id, t) {
-  status.innerHTML = `Ticket <b>${id}</b> <span class="badge">${t.meta.status}</span>`;
-  ticketEl.innerHTML = '<div class="trace">' + t.trace.map(e => `
-    <div class="evt">
-      <div><span class="step">${e.service} · ${e.step}</span></div>
-      <div class="meta">${e.at} — ${e.latency_ms ?? '?'} ms ${e.detail ? JSON.stringify(e.detail) : ''}</div>
-    </div>`).join('') + '</div>';
+  const m = t.meta;
+  const tier = m.risk_tier ? `<span class="badge ${m.risk_tier>=3?'t3':''}">tier ${m.risk_tier}</span>` : '';
+  statusEl.innerHTML = `Ticket <b>${id}</b> <span class="badge">${m.status}</span>${tier}
+    ${m.language ? `<span class="badge">${m.language}</span>` : ''}
+    ${m.pii_found ? `<span class="badge t3">${m.pii_found} PII redacted</span>` : ''}`;
+  ticketEl.innerHTML = `
+    <div class="card"><div class="muted">stored text (post-redaction)</div>${esc(m.text || '')}</div>
+    <div class="trace">${t.trace.map(e => `
+      <div class="evt"><div><span class="step">${e.service} · ${e.step}</span></div>
+      <div class="meta">${e.at} — ${e.latency_ms ?? '?'} ms ${e.detail ? esc(JSON.stringify(e.detail)) : ''}</div>
+      </div>`).join('')}</div>
+    <button class="act soft" onclick="routeTicket('${id}')">Ask bandit to route</button>
+    <button class="act soft" onclick="showAudit('${id}')">Audit trail</button>
+    <div id="extra"></div>`;
 }
+
+async function routeTicket(id) {
+  const r = await fetch(`tickets/${id}/route`, { method: 'POST' });
+  const j = await r.json();
+  document.getElementById('extra').innerHTML =
+    `<div class="card">routing arm: <b>${j.arm}</b> ${j.bandit ? '(bandit)' : '(governance bypass)'}</div>`;
+}
+
+async function showAudit(id) {
+  const r = await fetch(`tickets/${id}/audit`);
+  document.getElementById('extra').innerHTML =
+    `<pre>${esc(JSON.stringify(await r.json(), null, 2))}</pre>`;
+}
+
+async function loadApprovals() {
+  const r = await fetch('approvals');
+  const j = await r.json();
+  document.getElementById('queue').innerHTML = (j.tickets || []).map(t => `
+    <div class="card">
+      <b>${t.ticket_id}</b> <span class="badge t3">tier ${t.risk_tier}</span>
+      <span class="badge">${t.modality}</span>
+      <div style="margin:.5rem 0">${esc((t.text || '').slice(0, 240))}</div>
+      <button class="act" onclick="feedback('${t.ticket_id}','approve')">Approve</button>
+      <button class="act soft" onclick="feedback('${t.ticket_id}','approve_edited')">Approve w/ edits</button>
+      <button class="act warn" onclick="feedback('${t.ticket_id}','reject')">Reject</button>
+    </div>`).join('') || '<p class="muted">Queue is empty.</p>';
+}
+
+async function feedback(id, action) {
+  await fetch(`tickets/${id}/feedback`, { method: 'POST',
+    headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action }) });
+  loadApprovals();
+}
+
+async function kbSearch() {
+  const q = document.getElementById('q').value.trim();
+  if (!q) return;
+  const r = await fetch(`kb/search?q=${encodeURIComponent(q)}&k=4`);
+  const j = await r.json();
+  document.getElementById('kbout').innerHTML = j.insufficient_knowledge
+    ? '<p class="muted">Insufficient knowledge — the system refuses to answer rather than fabricate.</p>'
+    : j.results.map(x => `
+      <div class="card"><b>${x.doc_id}</b> § ${x.section}
+        <span class="badge">score ${x.score}</span><span class="badge">v${x.version} · ${x.effective_date}</span>
+        <div class="muted" style="margin-top:.4rem">${esc(x.text.slice(0, 300))}…</div>
+      </div>`).join('');
+}
+
+async function loadScorecard() {
+  const r = await fetch('scorecard');
+  document.getElementById('scorecard').textContent =
+    r.ok ? JSON.stringify(await r.json(), null, 2) : 'scorecard not bundled yet — run make eval';
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 </script>
 </body>
 </html>

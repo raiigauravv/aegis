@@ -32,6 +32,7 @@ locals {
   services = [
     "hello_world", "ticket_api", "intake_router", "kb_query",
     "enrich_nlp", "extract_text", "transcribe_audio",
+    "bandit_policy", "mcp_tools", "moderation_gate",
   ]
   container_services = ["kb_query", "enrich_nlp", "extract_text", "transcribe_audio"]
   build              = "${path.module}/../../../build"
@@ -96,11 +97,15 @@ module "hello_world" {
 data "aws_iam_policy_document" "ticket_api" {
   statement {
     actions   = ["sqs:SendMessage"]
-    resources = [module.ingestion.queue_arn]
+    resources = [module.ingestion.queue_arn, module.ingestion.stage_queue_arns["feedback"]]
   }
   statement {
-    actions   = ["dynamodb:Query"]
+    actions   = ["dynamodb:Query", "dynamodb:Scan", "dynamodb:UpdateItem", "dynamodb:PutItem"]
     resources = [module.ingestion.table_arn]
+  }
+  statement {
+    actions   = ["lambda:InvokeFunction"]
+    resources = [module.bandit_policy.function_arn]
   }
 }
 
@@ -114,7 +119,151 @@ module "ticket_api" {
   attach_policy  = true
   policy_json    = data.aws_iam_policy_document.ticket_api.json
   env_vars = {
-    QUEUE_URL  = module.ingestion.queue_url
+    QUEUE_URL          = module.ingestion.queue_url
+    TABLE_NAME         = module.ingestion.table_name
+    FEEDBACK_QUEUE_URL = module.ingestion.stage_queue_urls["feedback"]
+    BANDIT_FUNCTION    = module.bandit_policy.function_name
+  }
+}
+
+# --- bandit, MCP tools, moderation ---------------------------------------------
+
+data "aws_iam_policy_document" "bandit_policy" {
+  statement {
+    actions   = ["dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+    resources = [module.ingestion.table_arn]
+  }
+  statement {
+    actions   = ["s3:PutObject"]
+    resources = ["${module.knowledge.bucket_arn}/bandit/*"]
+  }
+  statement {
+    actions   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+    resources = [module.ingestion.stage_queue_arns["feedback"]]
+  }
+}
+
+module "bandit_policy" {
+  source         = "../../modules/lambda_service"
+  name           = "bandit_policy"
+  env            = local.env
+  zip_path       = "${local.build}/bandit_policy.zip"
+  log_group_name = module.observability.log_group_names["bandit_policy"]
+  log_group_arn  = module.observability.log_group_arns["bandit_policy"]
+  attach_policy  = true
+  policy_json    = data.aws_iam_policy_document.bandit_policy.json
+  timeout        = 30
+  memory_mb      = 512
+  env_vars = {
+    TABLE_NAME      = module.ingestion.table_name
+    SNAPSHOT_BUCKET = module.knowledge.bucket
+    BANDIT_ALPHA    = "1.0"
+  }
+}
+
+resource "aws_lambda_event_source_mapping" "feedback" {
+  event_source_arn        = module.ingestion.stage_queue_arns["feedback"]
+  function_name           = module.bandit_policy.function_name
+  batch_size              = 5
+  function_response_types = ["ReportBatchItemFailures"]
+
+  scaling_config {
+    maximum_concurrency = 2
+  }
+}
+
+# Nightly policy snapshot (EventBridge Scheduler)
+data "aws_iam_policy_document" "scheduler_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["scheduler.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "scheduler" {
+  name               = "aegis-${local.env}-scheduler"
+  assume_role_policy = data.aws_iam_policy_document.scheduler_assume.json
+}
+
+resource "aws_iam_role_policy" "scheduler_invoke" {
+  name = "invoke"
+  role = aws_iam_role.scheduler.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "lambda:InvokeFunction"
+      Resource = module.bandit_policy.function_arn
+    }]
+  })
+}
+
+resource "aws_scheduler_schedule" "bandit_snapshot" {
+  name                = "aegis-${local.env}-bandit-snapshot"
+  schedule_expression = "cron(0 7 * * ? *)" # nightly 07:00 UTC
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = module.bandit_policy.function_arn
+    role_arn = aws_iam_role.scheduler.arn
+    input    = jsonencode({ action = "snapshot" })
+  }
+}
+
+data "aws_iam_policy_document" "mcp_tools" {
+  statement {
+    actions   = ["dynamodb:Query", "dynamodb:PutItem"]
+    resources = [module.ingestion.table_arn]
+  }
+  statement {
+    actions   = ["lambda:InvokeFunction"]
+    resources = [module.kb_query.function_arn]
+  }
+}
+
+module "mcp_tools" {
+  source         = "../../modules/lambda_service"
+  name           = "mcp_tools"
+  env            = local.env
+  zip_path       = "${local.build}/mcp_tools.zip"
+  log_group_name = module.observability.log_group_names["mcp_tools"]
+  log_group_arn  = module.observability.log_group_arns["mcp_tools"]
+  attach_policy  = true
+  policy_json    = data.aws_iam_policy_document.mcp_tools.json
+  timeout        = 60
+  env_vars = {
+    TABLE_NAME        = module.ingestion.table_name
+    KB_QUERY_FUNCTION = module.kb_query.function_name
+  }
+}
+
+data "aws_iam_policy_document" "moderation_gate" {
+  statement {
+    actions   = ["dynamodb:PutItem"]
+    resources = [module.ingestion.table_arn]
+  }
+}
+
+module "moderation_gate" {
+  source         = "../../modules/lambda_service"
+  name           = "moderation_gate"
+  env            = local.env
+  image_uri      = "${module.knowledge.repo_urls["enrich_nlp"]}:v1"
+  image_command  = ["moderation.lambda_handler"]
+  architectures  = ["arm64"]
+  log_group_name = module.observability.log_group_names["moderation_gate"]
+  log_group_arn  = module.observability.log_group_arns["moderation_gate"]
+  attach_policy  = true
+  policy_json    = data.aws_iam_policy_document.moderation_gate.json
+  timeout        = 30
+  memory_mb      = 1024
+  env_vars = {
     TABLE_NAME = module.ingestion.table_name
   }
 }
@@ -321,13 +470,21 @@ locals {
     hello_world = module.hello_world
     ticket_api  = module.ticket_api
     kb_query    = module.kb_query
+    mcp_tools   = module.mcp_tools
   }
   route_to_integration = {
-    "GET /hello"        = "hello_world"
-    "POST /tickets"     = "ticket_api"
-    "GET /tickets/{id}" = "ticket_api"
-    "GET /"             = "ticket_api"
-    "GET /kb/search"    = "kb_query"
+    "GET /hello"                  = "hello_world"
+    "POST /tickets"               = "ticket_api"
+    "GET /tickets/{id}"           = "ticket_api"
+    "POST /tickets/{id}/feedback" = "ticket_api"
+    "POST /tickets/{id}/route"    = "ticket_api"
+    "GET /tickets/{id}/audit"     = "ticket_api"
+    "GET /approvals"              = "ticket_api"
+    "GET /scorecard"              = "ticket_api"
+    "GET /bandit/curve"           = "ticket_api"
+    "GET /"                       = "ticket_api"
+    "GET /kb/search"              = "kb_query"
+    "POST /mcp"                   = "mcp_tools"
   }
 }
 

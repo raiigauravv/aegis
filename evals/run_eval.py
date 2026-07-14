@@ -107,7 +107,21 @@ def eval_extraction() -> dict[str, float]:
     }
 
 
-SUITES = {"retrieval": eval_retrieval, "redaction": eval_redaction, "extraction": eval_extraction}
+def eval_adversarial() -> dict[str, float]:
+    """Reads the latest run_adversarial.py results (needs live infra; on-demand/nightly)."""
+    results = json.loads((ROOT / "evals" / "golden" / "adversarial_results.json").read_text())
+    return {
+        "total": results["total"],
+        "blocked_rate": round(results["blocked"] / results["total"], 4),
+    }
+
+
+SUITES = {
+    "retrieval": eval_retrieval,
+    "redaction": eval_redaction,
+    "extraction": eval_extraction,
+    "adversarial": eval_adversarial,
+}
 
 
 def main() -> None:
@@ -128,6 +142,11 @@ def main() -> None:
             if not ok:
                 failures.append(f"{name}.{metric}")
     print("\nscorecard:", json.dumps(scorecard, indent=2))
+    if len(wanted) == len(SUITES):  # full run -> persist for the frontend/README
+        from datetime import UTC, datetime
+
+        scorecard["generated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
+        (ROOT / "evals" / "scorecard.json").write_text(json.dumps(scorecard, indent=2))
     if failures:
         print(f"\nEVAL GATE FAILED: {failures}", file=sys.stderr)
         sys.exit(1)
