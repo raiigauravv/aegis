@@ -20,12 +20,14 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 module = [
     "boto3.*", "botocore.*", "moto.*",
-    # ML/OCR deps that live only in Lambda container images
+    # ML/OCR deps that live only in Lambda container images (not in dev/CI install)
     "faiss.*", "sentence_transformers.*", "presidio_analyzer.*",
     "langdetect.*", "vaderSentiment.*", "faster_whisper.*",
     "pdfplumber.*", "pdf2image.*", "pytesseract.*", "PIL.*",
+    "numpy.*", "fastembed.*", "matplotlib.*",
     "redactor", "yaml.*", "bandit_lib.*",
 ]
 ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "-ra"

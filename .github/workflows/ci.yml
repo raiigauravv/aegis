@@ -26,14 +26,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e "./shared[dev]"
+          # container-only libs so mypy resolves real types (parity with local)
+          pip install numpy fastembed presidio-analyzer pyyaml
       - name: Lint
         run: |
-          ruff check shared services
-          ruff format --check shared services
+          ruff check shared services bandit
+          ruff format --check shared services bandit
       - name: Type-check
         run: mypy shared/aegis_core services
       - name: Test
-        run: pytest shared/tests services -q
+        run: pytest shared/tests services bandit -q
 
   # THE deploy gate: retrieval + redaction are recomputed from scratch on every
   # run; extraction + adversarial suites read the committed results of their
