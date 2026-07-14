@@ -32,6 +32,11 @@ class Channel(StrEnum):
 class TicketStatus(StrEnum):
     RECEIVED = "received"
     AWAITING_EXTRACTION = "awaiting_extraction"  # file dropped, Phase 3 extracts
+    AWAITING_TRANSCRIPTION = "awaiting_transcription"  # voice note, whisper path
+    ENRICHED = "enriched"  # language/sentiment/redaction done
+    AWAITING_APPROVAL = "awaiting_approval"  # risk tier >= 3, human queue
+    APPROVED = "approved"
+    REJECTED = "rejected"
     FAILED = "failed"
 
 

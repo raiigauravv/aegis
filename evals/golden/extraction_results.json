@@ -1,0 +1,19 @@
+{
+  "run_id": "045319",
+  "docs_per_type": 10,
+  "completed": 20,
+  "types": {
+    "pdf": {
+      "field_accuracy": 1.0,
+      "median_latency_ms": 71.9,
+      "method": "pdf_text",
+      "n": 10
+    },
+    "image": {
+      "field_accuracy": 1.0,
+      "median_latency_ms": 1098.7,
+      "method": "ocr",
+      "n": 10
+    }
+  }
+}

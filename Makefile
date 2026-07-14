@@ -22,7 +22,7 @@ lint: ## Ruff + mypy
 	$(VENV)/bin/mypy shared/aegis_core services
 
 test: lint ## Lint, type-check, and run unit tests
-	$(PY) -m pytest shared/tests services -q
+	$(PY) -m pytest shared/tests services bandit -q
 
 # --platform manylinux2014: Lambda runs Linux; native wheels built for macOS
 # (pydantic_core etc.) fail to import there.
@@ -53,11 +53,25 @@ deploy: package ## Terraform apply for $(ENV)
 destroy: ## Tear down $(ENV)
 	cd $(TF_DIR) && terraform destroy
 
-eval: ## Run the evaluation suite (Phase 9)
-	@echo "eval harness arrives in Phase 5/9" && exit 1
+ACCOUNT := 490004650850
+ECR := $(ACCOUNT).dkr.ecr.us-east-1.amazonaws.com
 
-seed: ## Seed the knowledge base (Phase 5)
-	@echo "KB seeding arrives in Phase 5" && exit 1
+eval: ## Run the evaluation suite (blocks below thresholds.yaml floors)
+	$(PY) evals/run_eval.py
+
+seed: ## Regenerate KB docs + golden retrieval set
+	$(PY) knowledge/scripts/seed_kb.py
+
+build-index: ## Build the FAISS index from knowledge/docs
+	$(PY) knowledge/scripts/build_index.py
+
+publish-index: ## Upload index versions to the knowledge bucket
+	aws s3 sync knowledge/index "s3://aegis-$(ENV)-knowledge-$(ACCOUNT)/index"
+
+docker-%: ## Build+push a container service, e.g. make docker-kb_query
+	aws ecr get-login-password | docker login --username AWS --password-stdin $(ECR)
+	docker build -f services/$*/Dockerfile -t $(ECR)/aegis/$(ENV)/$*:v1 .
+	docker push $(ECR)/aegis/$(ENV)/$*:v1
 
 demo: ## Run the demo flow (Phase 10)
 	@echo "demo arrives in Phase 10" && exit 1

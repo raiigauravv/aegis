@@ -39,14 +39,19 @@ resource "aws_iam_role_policy" "service" {
 }
 
 resource "aws_lambda_function" "this" {
-  function_name    = "aegis-${var.env}-${replace(var.name, "_", "-")}"
-  role             = aws_iam_role.this.arn
-  runtime          = "python3.12"
-  handler          = "handler.lambda_handler"
-  filename         = var.zip_path
-  source_code_hash = filebase64sha256(var.zip_path)
-  timeout          = var.timeout
-  memory_size      = var.memory_mb
+  function_name = "aegis-${var.env}-${replace(var.name, "_", "-")}"
+  role          = aws_iam_role.this.arn
+  timeout       = var.timeout
+  memory_size   = var.memory_mb
+  architectures = var.architectures
+
+  # Zip services (default) vs container-image services (heavy ML deps)
+  package_type     = var.image_uri == null ? "Zip" : "Image"
+  runtime          = var.image_uri == null ? "python3.12" : null
+  handler          = var.image_uri == null ? "handler.lambda_handler" : null
+  filename         = var.image_uri == null ? var.zip_path : null
+  source_code_hash = var.image_uri == null ? filebase64sha256(var.zip_path) : null
+  image_uri        = var.image_uri
 
   logging_config {
     log_format = "Text" # aegis_core.tracing emits JSON lines verbatim

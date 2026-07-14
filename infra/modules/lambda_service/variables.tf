@@ -8,7 +8,19 @@ variable "env" {
 }
 
 variable "zip_path" {
-  type = string
+  type    = string
+  default = null
+}
+
+variable "image_uri" {
+  description = "ECR image URI for container-based services; null for zip"
+  type        = string
+  default     = null
+}
+
+variable "architectures" {
+  type    = list(string)
+  default = ["x86_64"]
 }
 
 variable "log_group_name" {

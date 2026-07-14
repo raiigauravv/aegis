@@ -10,11 +10,13 @@ redrive limit they land in the DLQ (alarmed).
 """
 
 import json
+import os
 import time
 from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import unquote_plus
 
+import boto3
 from aegis_core import store
 from aegis_core.models import (
     Channel,
@@ -57,12 +59,39 @@ def _meta_from_s3_record(rec: dict[str, Any]) -> TicketMeta:
     bucket = rec["s3"]["bucket"]["name"]
     key = unquote_plus(rec["s3"]["object"]["key"])
     modality = _EXT_MODALITY.get(PurePosixPath(key).suffix.lower(), Modality.PDF)
+    status = (
+        TicketStatus.AWAITING_TRANSCRIPTION
+        if modality == Modality.AUDIO
+        else TicketStatus.AWAITING_EXTRACTION
+    )
     return TicketMeta(
         ticket_id=new_ticket_id(),
-        status=TicketStatus.AWAITING_EXTRACTION,
+        status=status,
         channel=Channel.S3,
         modality=modality,
         source={"bucket": bucket, "key": key},
+    )
+
+
+_NEXT_QUEUE_ENV = {
+    TicketStatus.RECEIVED: "ENRICH_QUEUE_URL",
+    TicketStatus.AWAITING_EXTRACTION: "EXTRACT_QUEUE_URL",
+    TicketStatus.AWAITING_TRANSCRIPTION: "TRANSCRIBE_QUEUE_URL",
+}
+_sqs = None
+
+
+def _dispatch_next(meta: TicketMeta) -> None:
+    """Route the ticket to its next pipeline stage queue."""
+    global _sqs
+    env_name = _NEXT_QUEUE_ENV.get(meta.status)
+    if env_name is None or not os.environ.get(env_name):
+        return
+    if _sqs is None:
+        _sqs = boto3.client("sqs")
+    _sqs.send_message(
+        QueueUrl=os.environ[env_name],
+        MessageBody=json.dumps({"ticket_id": meta.ticket_id}),
     )
 
 
@@ -103,6 +132,7 @@ def _process_body(body: str) -> None:
                 },
             )
         )
+        _dispatch_next(meta)
         logger.info(
             "ticket ingested",
             extra={

@@ -7,13 +7,25 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+# content-as-data files: KB prose and labeled eval strings stay on one line
+"knowledge/scripts/seed_kb.py" = ["E501"]
+"evals/golden/*" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["boto3.*", "botocore.*", "moto.*"]
+module = [
+    "boto3.*", "botocore.*", "moto.*",
+    # ML/OCR deps that live only in Lambda container images
+    "faiss.*", "sentence_transformers.*", "presidio_analyzer.*",
+    "langdetect.*", "vaderSentiment.*", "faster_whisper.*",
+    "pdfplumber.*", "pdf2image.*", "pytesseract.*", "PIL.*",
+    "redactor", "yaml.*",
+]
 ignore_missing_imports = true
 [tool.pytest.ini_options]
 addopts = "-ra"

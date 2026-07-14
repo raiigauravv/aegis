@@ -1,0 +1,13 @@
+# The numbers that can block a deploy (evals/run_eval.py exits 1 below any floor).
+retrieval:
+  hit_at_3: 0.85
+  mrr: 0.70
+
+redaction:
+  recall: 0.95
+  precision: 0.90
+extraction:
+  field_accuracy_pdf: 0.95
+  field_accuracy_ocr: 0.80
+# Pending Bedrock quota (support case 178397104900264):
+# groundedness >= 0.90, canary_decline = 1.0

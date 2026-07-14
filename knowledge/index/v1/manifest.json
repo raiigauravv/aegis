@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "chunks": 43,
+  "dim": 384,
+  "built_at": "2026-07-14T00:43:07.279996+00:00"
+}

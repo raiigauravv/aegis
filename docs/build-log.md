@@ -2,6 +2,50 @@
 
 One entry per phase. These entries become the demo-video script and interview stories.
 
+> Phases 3-9 were built out of playbook order while AWS support case 178397104900264
+> (Bedrock quota zeroed on this account) resolves. Everything below is Bedrock-free;
+> each entry lists what remains gated on the LLM path.
+
+## Phase 5 — Knowledge base & RAG (2026-07-13) · tag `v0.2-knowledge`
+
+16 NorthStar Banking docs (auth, payments, cards, fees, mortgage, wires, release notes), heading-aware
+chunking (43 chunks with doc/section/version/effective_date provenance), MiniLM embeddings via
+fastembed/ONNX, FAISS index versioned+immutable in S3 (`index/v<N>/`), kb_query container Lambda
+(arm64) behind GET /kb/search with score-threshold → `insufficient_knowledge` fabrication defense.
+**Measured:** hit@3 0.938, MRR 0.893 on 65 golden pairs (28 written in casual user voice, no shared
+vocabulary). Warm search 229ms; cold ~3s after swapping torch→ONNX (torch import alone blew the 60s
+budget — good war story) and 2048→3008MB. **Pending Bedrock:** nothing.
+
+## Phase 4 — Text analysis & PII redaction, non-LLM scope (2026-07-13) · tag `v0.3-enrichment`
+
+enrich_nlp container: langdetect + VADER sentiment + Presidio(spaCy sm, pinned — the default lg tried
+to pip-install at runtime inside Lambda, second war story) with custom Canadian recognizers: SIN with
+real Luhn validation, postal codes. Redaction to numbered placeholders BEFORE persistence; reversible
+map in a separate SSE table writable by exactly one role, readable by none. Deterministic risk-tier
+floor (fraud/legal keywords → tier 3 → awaiting_approval). Voice path: faster-whisper small/int8
+container, transcript rejoins the text flow. **Measured:** redaction P/R = 1.00/1.00 on the 50-case
+suite (structured PII: SIN/postal/phone/email/card; Luhn kills the decoys). Live multimodal proof:
+text+PII ticket fully redacted with tier-3 route; TTS voice note transcribed near-verbatim.
+**Pending Bedrock:** intent classification (slot reserved, `intent=pending_bedrock`).
+
+## Phase 3 — Extraction, classical half (2026-07-13) · tag `v0.4-extraction-ocr`
+
+extract_text container: pdfplumber for born-digital PDFs (text-layer heuristic), Tesseract for
+images/scans, confidence recorded per doc. Benchmark harness pushes labeled synthetic invoices
+through the LIVE pipeline and scores field accuracy from what actually persisted.
+**Measured (20 docs):** pdf_text 100% fields @ 72ms median; Tesseract OCR 100% @ 1.1s median —
+clean synthetics; noisy-scan set and the Nova Lite multimodal column are the Bedrock-gated half,
+harness ready to add the column.
+
+## Phase 8 (offline half) — LinUCB bandit (2026-07-13)
+
+LinUCB from scratch (~70 lines, disjoint linear models, DynamoDB-serializable sufficient
+statistics), unit-tested (convergence, exploration bonus, state round-trip). Simulator with
+structured context-dependent rewards mapped to the ADR-004 feedback levels.
+**Measured (2,000 rounds × 20 seeds):** cumulative regret 84.6 (LinUCB) vs 330.3 (ε-greedy 0.1)
+vs 595.6 (random) — 85.8% regret reduction, clearly sublinear curve committed as
+`bandit/notebooks/regret_curves.png`. Online serving loop lands with governance below.
+
 ## Phase 2 — Ingestion spine (2026-07-13) · tag `v0.1-ingestion`
 
 Text tickets flow POST /tickets → SQS → intake_router → DynamoDB single-table (PK=TICKET#id,

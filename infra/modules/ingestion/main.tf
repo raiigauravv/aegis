@@ -15,6 +15,36 @@ resource "aws_sqs_queue" "ingest" {
   })
 }
 
+# Per-stage work queues; all poison messages funnel to the one alarmed DLQ.
+resource "aws_sqs_queue" "stage" {
+  for_each                   = toset(["enrich", "extract", "transcribe"])
+  name                       = "aegis-${var.env}-${each.value}"
+  visibility_timeout_seconds = each.value == "enrich" ? 120 : 360 # containers are slower
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.dlq.arn
+    maxReceiveCount     = 3
+  })
+}
+
+# Reversible PII mapping lives in its OWN table so IAM can fence it off:
+# exactly one writer (enrich_nlp); no service holds read access.
+resource "aws_dynamodb_table" "pii_map" {
+  name           = "aegis-${var.env}-pii-map"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 2
+  write_capacity = 2
+  hash_key       = "PK"
+
+  attribute {
+    name = "PK"
+    type = "S"
+  }
+
+  server_side_encryption {
+    enabled = true # AWS-owned key; KMS CMK is the at-scale answer
+  }
+}
+
 # Alarm #1 of the 10 free: anything in the DLQ is a bug worth looking at.
 resource "aws_cloudwatch_metric_alarm" "dlq_depth" {
   alarm_name          = "aegis-${var.env}-dlq-not-empty"

@@ -1,0 +1,65 @@
+{"question": "What does error code NS-403 mean?", "expected_doc_id": "auth-login-troubleshooting", "difficulty": "easy"}
+{"question": "How long until a locked profile unlocks by itself?", "expected_doc_id": "auth-login-troubleshooting", "difficulty": "easy"}
+{"question": "What are the password requirements for the NorthStar app?", "expected_doc_id": "auth-login-troubleshooting", "difficulty": "easy"}
+{"question": "How can I recover my account if I lost my authenticator app?", "expected_doc_id": "auth-2fa-setup", "difficulty": "easy"}
+{"question": "How long does marking a device as trusted skip 2FA?", "expected_doc_id": "auth-2fa-setup", "difficulty": "easy"}
+{"question": "What is the daily e-Transfer limit?", "expected_doc_id": "payments-etransfer-limits", "difficulty": "easy"}
+{"question": "How long does an e-Transfer take with Autodeposit?", "expected_doc_id": "payments-etransfer-limits", "difficulty": "easy"}
+{"question": "Can I cancel an e-Transfer after it was deposited?", "expected_doc_id": "payments-etransfer-limits", "difficulty": "easy"}
+{"question": "What does decline code P-090 mean?", "expected_doc_id": "payments-failed-declined", "difficulty": "easy"}
+{"question": "Why do I see the same charge twice on my account?", "expected_doc_id": "payments-failed-declined", "difficulty": "easy"}
+{"question": "How fast does a replacement card arrive?", "expected_doc_id": "cards-lost-stolen", "difficulty": "easy"}
+{"question": "Does locking my card stop subscription payments?", "expected_doc_id": "cards-lost-stolen", "difficulty": "easy"}
+{"question": "Am I liable for fraudulent charges on a stolen card?", "expected_doc_id": "cards-lost-stolen", "difficulty": "easy"}
+{"question": "What is the default daily ATM withdrawal limit?", "expected_doc_id": "cards-limits-pin", "difficulty": "easy"}
+{"question": "How do I fix a blocked PIN after too many wrong attempts?", "expected_doc_id": "cards-limits-pin", "difficulty": "easy"}
+{"question": "How can I get the monthly chequing fee waived?", "expected_doc_id": "accounts-fees-chequing", "difficulty": "easy"}
+{"question": "How much is the NSF fee?", "expected_doc_id": "accounts-fees-chequing", "difficulty": "easy"}
+{"question": "When are T5 tax slips available?", "expected_doc_id": "accounts-statements-documents", "difficulty": "easy"}
+{"question": "How long are e-statements kept?", "expected_doc_id": "accounts-statements-documents", "difficulty": "easy"}
+{"question": "The app shows a blank screen after login, how do I fix it?", "expected_doc_id": "app-troubleshooting-crashes", "difficulty": "easy"}
+{"question": "What information is needed to escalate an app crash?", "expected_doc_id": "app-troubleshooting-crashes", "difficulty": "easy"}
+{"question": "Why did biometric login stop working after my phone updated?", "expected_doc_id": "app-troubleshooting-crashes", "difficulty": "easy"}
+{"question": "Why did I stop receiving push notifications?", "expected_doc_id": "app-notifications", "difficulty": "easy"}
+{"question": "Can security alerts be turned off?", "expected_doc_id": "app-notifications", "difficulty": "easy"}
+{"question": "How do I report fraud on my account?", "expected_doc_id": "security-fraud-reporting", "difficulty": "easy"}
+{"question": "How long does a fraud investigation take for card transactions?", "expected_doc_id": "security-fraud-reporting", "difficulty": "easy"}
+{"question": "Will NorthStar ever ask for my 2FA code by phone?", "expected_doc_id": "security-fraud-reporting", "difficulty": "easy"}
+{"question": "How do I download all my personal data?", "expected_doc_id": "security-privacy-data", "difficulty": "easy"}
+{"question": "What happens to my data after I close my account?", "expected_doc_id": "security-privacy-data", "difficulty": "easy"}
+{"question": "How much of my mortgage can I prepay without penalty?", "expected_doc_id": "mortgage-payments", "difficulty": "easy"}
+{"question": "What happens if I miss a mortgage payment?", "expected_doc_id": "mortgage-payments", "difficulty": "easy"}
+{"question": "Can I cash a non-redeemable GIC before it matures?", "expected_doc_id": "savings-interest-gic", "difficulty": "easy"}
+{"question": "How is savings interest calculated and paid?", "expected_doc_id": "savings-interest-gic", "difficulty": "easy"}
+{"question": "What does an international wire cost to send?", "expected_doc_id": "wires-international", "difficulty": "easy"}
+{"question": "How long does an international wire take to arrive?", "expected_doc_id": "wires-international", "difficulty": "easy"}
+{"question": "What new features shipped in app version 8.3?", "expected_doc_id": "release-notes-8-3", "difficulty": "easy"}
+{"question": "Which version fixed the payees screen crash?", "expected_doc_id": "release-notes-8-3", "difficulty": "easy"}
+{"question": "my account got blocked after typing the wrong password a bunch of times", "expected_doc_id": "auth-login-troubleshooting", "difficulty": "hard"}
+{"question": "it says NS-403 when I try to get in", "expected_doc_id": "auth-login-troubleshooting", "difficulty": "hard"}
+{"question": "got a new phone and my code generator is gone, now what", "expected_doc_id": "auth-2fa-setup", "difficulty": "hard"}
+{"question": "do I have to enter the 6 digit code every single time on my own phone?", "expected_doc_id": "auth-2fa-setup", "difficulty": "hard"}
+{"question": "whats the most money I can send someone in one shot", "expected_doc_id": "payments-etransfer-limits", "difficulty": "hard"}
+{"question": "sent money to my landlord a month ago and she never took it, where did it go", "expected_doc_id": "payments-etransfer-limits", "difficulty": "hard"}
+{"question": "my rent payment keeps getting rejected even though I have money", "expected_doc_id": "payments-failed-declined", "difficulty": "hard"}
+{"question": "store billed me two times for one purchase", "expected_doc_id": "payments-failed-declined", "difficulty": "hard"}
+{"question": "someone took my wallet, what do I do about my bank card", "expected_doc_id": "cards-lost-stolen", "difficulty": "hard"}
+{"question": "if I freeze my card will netflix still charge me", "expected_doc_id": "cards-lost-stolen", "difficulty": "hard"}
+{"question": "the machine ate my PIN, says blocked after I fat-fingered it", "expected_doc_id": "cards-limits-pin", "difficulty": "hard"}
+{"question": "how much cash can I pull from the machine in a day", "expected_doc_id": "cards-limits-pin", "difficulty": "hard"}
+{"question": "why am I paying 5 bucks a month for my account", "expected_doc_id": "accounts-fees-chequing", "difficulty": "hard"}
+{"question": "got dinged 45 dollars because a payment bounced", "expected_doc_id": "accounts-fees-chequing", "difficulty": "hard"}
+{"question": "need a bank paper that proves where I live", "expected_doc_id": "accounts-statements-documents", "difficulty": "hard"}
+{"question": "where do I find the slip for my interest for filing taxes", "expected_doc_id": "accounts-statements-documents", "difficulty": "hard"}
+{"question": "app just shows a white screen after I sign in", "expected_doc_id": "app-troubleshooting-crashes", "difficulty": "hard"}
+{"question": "face unlock quit working since the ios update", "expected_doc_id": "app-troubleshooting-crashes", "difficulty": "hard"}
+{"question": "my phone stopped buzzing when money comes in", "expected_doc_id": "app-notifications", "difficulty": "hard"}
+{"question": "I clicked a link in a text pretending to be the bank and typed my login", "expected_doc_id": "security-fraud-reporting", "difficulty": "hard"}
+{"question": "theres a charge on my card I never made", "expected_doc_id": "security-fraud-reporting", "difficulty": "hard"}
+{"question": "I want a copy of everything the bank knows about me", "expected_doc_id": "security-privacy-data", "difficulty": "hard"}
+{"question": "can I throw an extra 20 grand at my mortgage this year without getting charged", "expected_doc_id": "mortgage-payments", "difficulty": "hard"}
+{"question": "money is tight, can I skip this month's house payment", "expected_doc_id": "mortgage-payments", "difficulty": "hard"}
+{"question": "can I get my money out of that locked-in certificate early", "expected_doc_id": "savings-interest-gic", "difficulty": "hard"}
+{"question": "sending money to my family overseas, what will it cost", "expected_doc_id": "wires-international", "difficulty": "hard"}
+{"question": "my wire from last week still hasn't shown up at the other bank", "expected_doc_id": "wires-international", "difficulty": "hard"}
+{"question": "whats new in the latest app update", "expected_doc_id": "release-notes-8-3", "difficulty": "hard"}

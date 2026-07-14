@@ -28,9 +28,13 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  env      = "dev"
-  services = ["hello_world", "ticket_api", "intake_router"]
-  build    = "${path.module}/../../../build"
+  env = "dev"
+  services = [
+    "hello_world", "ticket_api", "intake_router", "kb_query",
+    "enrich_nlp", "extract_text", "transcribe_audio",
+  ]
+  container_services = ["kb_query", "enrich_nlp", "extract_text", "transcribe_audio"]
+  build              = "${path.module}/../../../build"
 }
 
 module "observability" {
@@ -43,6 +47,39 @@ module "ingestion" {
   source     = "../../modules/ingestion"
   env        = local.env
   account_id = data.aws_caller_identity.current.account_id
+}
+
+module "knowledge" {
+  source             = "../../modules/knowledge"
+  env                = local.env
+  account_id         = data.aws_caller_identity.current.account_id
+  container_services = local.container_services
+}
+
+data "aws_iam_policy_document" "kb_query" {
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${module.knowledge.bucket_arn}/index/*"]
+  }
+}
+
+module "kb_query" {
+  source         = "../../modules/lambda_service"
+  name           = "kb_query"
+  env            = local.env
+  image_uri      = "${module.knowledge.repo_urls["kb_query"]}:v1"
+  architectures  = ["arm64"]
+  log_group_name = module.observability.log_group_names["kb_query"]
+  log_group_arn  = module.observability.log_group_arns["kb_query"]
+  attach_policy  = true
+  policy_json    = data.aws_iam_policy_document.kb_query.json
+  timeout        = 60
+  memory_mb      = 3008 # CPU scales with memory: keeps ONNX cold start under the 30s APIGW cap
+  env_vars = {
+    INDEX_BUCKET    = module.knowledge.bucket
+    INDEX_PREFIX    = "index/v1"
+    SCORE_THRESHOLD = "0.35"
+  }
 }
 
 # --- services ----------------------------------------------------------------
@@ -91,6 +128,10 @@ data "aws_iam_policy_document" "intake_router" {
     actions   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
     resources = [module.ingestion.queue_arn]
   }
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = values(module.ingestion.stage_queue_arns)
+  }
 }
 
 module "intake_router" {
@@ -104,10 +145,125 @@ module "intake_router" {
   policy_json    = data.aws_iam_policy_document.intake_router.json
   timeout        = 30 # visibility timeout (60s) stays > 2x this
   env_vars = {
-    TABLE_NAME = module.ingestion.table_name
+    TABLE_NAME           = module.ingestion.table_name
+    ENRICH_QUEUE_URL     = module.ingestion.stage_queue_urls["enrich"]
+    EXTRACT_QUEUE_URL    = module.ingestion.stage_queue_urls["extract"]
+    TRANSCRIBE_QUEUE_URL = module.ingestion.stage_queue_urls["transcribe"]
   }
 }
 
+# --- pipeline stage services (container images) --------------------------------
+
+data "aws_iam_policy_document" "enrich_nlp" {
+  statement {
+    actions   = ["dynamodb:Query", "dynamodb:UpdateItem", "dynamodb:PutItem"]
+    resources = [module.ingestion.table_arn]
+  }
+  statement {
+    # the ONLY principal in the account with access to the re-identification map
+    actions   = ["dynamodb:PutItem"]
+    resources = [module.ingestion.pii_table_arn]
+  }
+  statement {
+    actions   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+    resources = [module.ingestion.stage_queue_arns["enrich"]]
+  }
+}
+
+module "enrich_nlp" {
+  source         = "../../modules/lambda_service"
+  name           = "enrich_nlp"
+  env            = local.env
+  image_uri      = "${module.knowledge.repo_urls["enrich_nlp"]}:v1"
+  architectures  = ["arm64"]
+  log_group_name = module.observability.log_group_names["enrich_nlp"]
+  log_group_arn  = module.observability.log_group_arns["enrich_nlp"]
+  attach_policy  = true
+  policy_json    = data.aws_iam_policy_document.enrich_nlp.json
+  timeout        = 60
+  memory_mb      = 1024
+  env_vars = {
+    TABLE_NAME     = module.ingestion.table_name
+    PII_TABLE_NAME = module.ingestion.pii_table_name
+  }
+}
+
+data "aws_iam_policy_document" "extract_text" {
+  statement {
+    actions   = ["dynamodb:Query", "dynamodb:UpdateItem", "dynamodb:PutItem"]
+    resources = [module.ingestion.table_arn]
+  }
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${module.ingestion.intake_bucket_arn}/*"]
+  }
+  statement {
+    actions   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+    resources = [module.ingestion.stage_queue_arns["extract"]]
+  }
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = [module.ingestion.stage_queue_arns["enrich"]]
+  }
+}
+
+module "extract_text" {
+  source         = "../../modules/lambda_service"
+  name           = "extract_text"
+  env            = local.env
+  image_uri      = "${module.knowledge.repo_urls["extract_text"]}:v1"
+  architectures  = ["arm64"]
+  log_group_name = module.observability.log_group_names["extract_text"]
+  log_group_arn  = module.observability.log_group_arns["extract_text"]
+  attach_policy  = true
+  policy_json    = data.aws_iam_policy_document.extract_text.json
+  timeout        = 120
+  memory_mb      = 1024
+  env_vars = {
+    TABLE_NAME       = module.ingestion.table_name
+    ENRICH_QUEUE_URL = module.ingestion.stage_queue_urls["enrich"]
+  }
+}
+
+data "aws_iam_policy_document" "transcribe_audio" {
+  statement {
+    actions   = ["dynamodb:Query", "dynamodb:UpdateItem", "dynamodb:PutItem"]
+    resources = [module.ingestion.table_arn]
+  }
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${module.ingestion.intake_bucket_arn}/*"]
+  }
+  statement {
+    actions   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+    resources = [module.ingestion.stage_queue_arns["transcribe"]]
+  }
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = [module.ingestion.stage_queue_arns["enrich"]]
+  }
+}
+
+module "transcribe_audio" {
+  source         = "../../modules/lambda_service"
+  name           = "transcribe_audio"
+  env            = local.env
+  image_uri      = "${module.knowledge.repo_urls["transcribe_audio"]}:v1"
+  architectures  = ["arm64"]
+  log_group_name = module.observability.log_group_names["transcribe_audio"]
+  log_group_arn  = module.observability.log_group_arns["transcribe_audio"]
+  attach_policy  = true
+  policy_json    = data.aws_iam_policy_document.transcribe_audio.json
+  timeout        = 300
+  memory_mb      = 2048
+  env_vars = {
+    TABLE_NAME       = module.ingestion.table_name
+    ENRICH_QUEUE_URL = module.ingestion.stage_queue_urls["enrich"]
+  }
+}
+
+# Concurrency budget (account cap is 10 until the support case resolves):
+# 4 mappings x max 2 = 8, leaving 2 for ticket_api/kb_query bursts.
 resource "aws_lambda_event_source_mapping" "ingest" {
   event_source_arn        = module.ingestion.queue_arn
   function_name           = module.intake_router.function_name
@@ -115,9 +271,23 @@ resource "aws_lambda_event_source_mapping" "ingest" {
   function_response_types = ["ReportBatchItemFailures"]
 
   scaling_config {
-    # account concurrency is capped at 10 (new-account restriction, ADR-003):
-    # leave headroom for ticket_api + hello_world
-    maximum_concurrency = 5
+    maximum_concurrency = 2
+  }
+}
+
+resource "aws_lambda_event_source_mapping" "stages" {
+  for_each = {
+    enrich     = module.enrich_nlp.function_name
+    extract    = module.extract_text.function_name
+    transcribe = module.transcribe_audio.function_name
+  }
+  event_source_arn        = module.ingestion.stage_queue_arns[each.key]
+  function_name           = each.value
+  batch_size              = 5
+  function_response_types = ["ReportBatchItemFailures"]
+
+  scaling_config {
+    maximum_concurrency = 2
   }
 }
 
@@ -150,12 +320,14 @@ locals {
   integrations = {
     hello_world = module.hello_world
     ticket_api  = module.ticket_api
+    kb_query    = module.kb_query
   }
   route_to_integration = {
     "GET /hello"        = "hello_world"
     "POST /tickets"     = "ticket_api"
     "GET /tickets/{id}" = "ticket_api"
     "GET /"             = "ticket_api"
+    "GET /kb/search"    = "kb_query"
   }
 }
 

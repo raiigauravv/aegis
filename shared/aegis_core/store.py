@@ -50,6 +50,18 @@ def put_ticket_meta(meta: TicketMeta) -> bool:
     return True
 
 
+def update_meta(ticket_id: str, fields: dict[str, Any]) -> None:
+    """Merge fields into the META item (used by pipeline stages to advance status)."""
+    expr = ", ".join(f"#k{i} = :v{i}" for i in range(len(fields)))
+    table().update_item(
+        Key={"PK": _pk(ticket_id), "SK": "META"},
+        UpdateExpression=f"SET {expr}",
+        ExpressionAttributeNames={f"#k{i}": k for i, k in enumerate(fields)},
+        ExpressionAttributeValues={f":v{i}": v for i, v in enumerate(fields.values())},
+        ConditionExpression="attribute_exists(SK)",
+    )
+
+
 def append_trace(event: TraceEvent) -> None:
     item: dict[str, Any] = {
         "PK": _pk(event.ticket_id),
@@ -61,6 +73,17 @@ def append_trace(event: TraceEvent) -> None:
     table().put_item(Item=item)
 
 
+def _plain(value: Any) -> Any:
+    """Recursively convert DynamoDB Decimals to int/float for JSON serialization."""
+    if isinstance(value, Decimal):
+        return int(value) if value == value.to_integral_value() else float(value)
+    if isinstance(value, dict):
+        return {k: _plain(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_plain(v) for v in value]
+    return value
+
+
 def get_ticket(ticket_id: str) -> dict[str, Any] | None:
     """Return {'meta': ..., 'trace': [...]} or None if the ticket doesn't exist."""
     resp = table().query(
@@ -68,11 +91,10 @@ def get_ticket(ticket_id: str) -> dict[str, Any] | None:
         ExpressionAttributeValues={":pk": _pk(ticket_id)},
     )
     meta, trace = None, []
-    for item in resp.get("Items", []):
+    for raw in resp.get("Items", []):
+        item = _plain(raw)
         item.pop("PK", None)
         sk = str(item.pop("SK", ""))
-        if "latency_ms" in item and isinstance(item["latency_ms"], Decimal):
-            item["latency_ms"] = float(item["latency_ms"])
         if sk == "META":
             meta = item
         elif sk.startswith("TRACE#"):
