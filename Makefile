@@ -89,6 +89,9 @@ docker-%: ## Build+push a container service, e.g. make docker-kb_query
 	docker build -f services/$*/Dockerfile -t $(ECR)/aegis/$(ENV)/$*:v1 .
 	docker push $(ECR)/aegis/$(ENV)/$*:v1
 
+load-test: ## Fire N synthetic tickets at the API (default 500)
+	$(PY) knowledge/scripts/load_test.py $(API) $(or $(N),500)
+
 demo: ## Run the demo flow (Phase 10)
 	@echo "demo arrives in Phase 10" && exit 1
 

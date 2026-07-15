@@ -69,6 +69,19 @@ the terraform deploy job (needs: [quality, eval-gate]). Nightly cron re-runs the
 notable: 8-word chunk truncation did NOT break the gate (hit@3 0.92) — the golden set caught the
 severity difference correctly. **Pending Bedrock:** groundedness LLM-judge, fabrication canaries.
 
+## Phase 11 — Launch package (2026-07-15) · tag `v0.9-launch`
+
+README rewritten as the front-door artifact: elevator paragraph, Mermaid architecture diagram,
+verified-metrics table (every number script-reproducible), 7 differentiators, AI-103 syllabus
+mapping, quick-start, honest "Phase 6 pending Bedrock" framing. Demo-video script (2:30–3:00) and
+DRAFT resume bullets committed (`docs/resume-bullets-DRAFT.md` — flagged for ground-truth review
+before shipping, per protocol). `make load-test` target added.
+
+**Project state at launch:** 10 of 11 phases live on AWS; the 3 reasoning agents (Phase 6) are the
+only remaining work and are blocked solely on the Bedrock quota case (178397104900264). All
+differentiators — online RL, governance, eval-gated CI, dual-path extraction, MCP tools, cost model,
+verified metrics — are built and deployed.
+
 ## Phase 10 — Observability, load & cost proof (2026-07-14) · tag `v0.8-observability`
 
 CloudWatch dashboard `aegis-dev` (invocations/stage, p95/stage, errors+throttles, queue backlog,
