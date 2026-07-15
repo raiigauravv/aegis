@@ -69,6 +69,15 @@ the terraform deploy job (needs: [quality, eval-gate]). Nightly cron re-runs the
 notable: 8-word chunk truncation did NOT break the gate (hit@3 0.92) — the golden set caught the
 severity difference correctly. **Pending Bedrock:** groundedness LLM-judge, fabrication canaries.
 
+## Phase 10 — Observability, load & cost proof (2026-07-14) · tag `v0.8-observability`
+
+CloudWatch dashboard `aegis-dev` (invocations/stage, p95/stage, errors+throttles, queue backlog,
+DLQ single-value) deployed via the observability module. Frontend v2 shipped in Phase 7 (tabs).
+**1,000-ticket load test:** completed in 111.8s (~9 tickets/s sustained against the 10-concurrency
+cap), POST p95 668ms, **end-to-end p95 1.37s**, **zero DLQ entries**, 147 client retries absorbed.
+`docs/cost-model.md` rewritten with measured per-service footprint: everything $0 in always-free
+except ECR (~$0.45/mo for 5 arm64 images); Bedrock projected ~$0.0007/ticket, < $15 whole build.
+
 ## Phase 8 (offline half) — LinUCB bandit (2026-07-13)
 
 LinUCB from scratch (~70 lines, disjoint linear models, DynamoDB-serializable sufficient

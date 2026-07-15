@@ -41,7 +41,13 @@ locals {
 module "observability" {
   source        = "../../modules/observability"
   env           = local.env
+  region        = var.aws_region
   service_names = local.services
+  dashboard = {
+    functions = [for s in local.services : "aegis-${local.env}-${replace(s, "_", "-")}"]
+    queues    = ["aegis-${local.env}-ingest", "aegis-${local.env}-enrich", "aegis-${local.env}-extract"]
+    dlq       = "aegis-${local.env}-ingest-dlq"
+  }
 }
 
 module "ingestion" {
